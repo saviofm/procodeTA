@@ -1,0 +1,15 @@
+{
+  "welcomeFile": "fiori/index.html",
+  "authenticationMethod": "none",
+  "routes": [
+      {
+          "source": "^/incident/(.*)$",
+          "destination": "srv-api"
+      }
+      ,
+      {
+          "source": "^/(.*)$",
+          "localDir": "resources"
+      }
+  ]
+}

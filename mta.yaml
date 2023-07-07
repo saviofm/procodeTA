@@ -1,0 +1,70 @@
+_schema-version: '3.1'
+ID: incidents_ac45544u01
+version: 1.0.0
+description: "A simple CAP project."
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npx -p @sap/cds-dk cds build --production
+modules:
+  - name: incidents_ac45544u01-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 64M
+      disk-quota: 320M
+    build-parameters:
+      builder: npm-ci
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: incidents_ac45544u01-db
+      - name: incidents_ac45544u01-auth
+
+  - name: incidents_ac45544u01-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 96M
+      disk-quota: 240M
+    requires:
+      - name: incidents_ac45544u01-db
+
+  - name: incidents_ac45544u01
+    type: approuter.nodejs
+    path: app/ # from cds.env.folders. Consider also cds.env.build.target -> gen/app
+    parameters:
+      keep-existing-routes: true
+      disk-quota: 240M
+      memory: 96M
+    requires:
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api # must be used in xs-app.json as well
+          url: ~{srv-url}
+          forwardAuthToken: true
+      - name: incidents_ac45544u01-auth
+
+resources:
+  - name: incidents_ac45544u01-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+  - name: incidents_ac45544u01-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: incidents_ac45544u01-${org}-${space}
+        tenant-mode: dedicated
